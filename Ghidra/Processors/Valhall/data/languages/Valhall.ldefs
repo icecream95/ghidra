@@ -1,0 +1,14 @@
+<?xml version="1.1" encoding="UTF-8"?>
+<language_definitions>
+   <language processor="Valhall"
+            endian="little"
+            size="64"
+            variant="default"
+            version="1.0"
+            slafile="Valhall.sla"
+            processorspec="Valhall.pspec"
+            id="Valhall:LE:64:default">
+    <description>Instruction set for ARM Mali Valhall GPUs</description>
+    <compiler name="default" spec="Valhall.cspec" id="default"/>
+  </language>
+</language_definitions>
