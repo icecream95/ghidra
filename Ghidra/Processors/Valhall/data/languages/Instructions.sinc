@@ -17,19 +17,29 @@ define token opword (64)
         src1ts       = (0,2)
         src1id       = (0,4)
         src1t        = (6,7)
-
         src2r        = (8,13)
         src2u        = (8,13)
         src2i        = (8,12)
-        src2d        = (14,15)
+        src2ts       = (8,10)
+        src2id       = (8,12)
+        src2t        = (14,15)
         src3r        = (16,21)
         src3u        = (16,21)
         src3i        = (16,20)
-        src3d        = (22,23)
+        src3ts       = (16,18)
+        src3id       = (16,20)
+        src3t        = (22,23)
         src4r        = (24,29)
         src4u        = (24,29)
         src4i        = (24,28)
-        src4d        = (30,31)
+        src4ts       = (24,26)
+        src4id       = (24,28)
+        src4t        = (30,31)
+
+        absneg1      = (38,39)
+        absneg2      = (36,37)
+        absneg3      = (34,35)
+        absneg4      = (32,33)
 
         D1           = (40,45)
         DM           = (46,47)
@@ -94,22 +104,50 @@ attach values [ src1i src2i src3i src4i ] [
         0x40000000 0x44000000 0x48000000 0x42480000
 ];
 
-attach variables [ src1ts ] [
+attach variables [ src1ts src2ts src3ts src4ts ] [
         _ _ tls_ptr tls_ptr_hi _ _ wls_ptr wls_ptr_hi
 ];
 
-attach variables [ src1id ] [
+attach variables [ src1id src2id src3id src4id ] [
         _ _ lane_id _ _ _ core_id _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
         _ _ _ _ _ program_counter _
 ];
 
+#S$: src$r is src$r & src$t=0 { export src$r; }
+#S$: src$r^"`" is src$r & src$t=1 { export src$r; }
+#S$: src$u is src$u & src$t=2 { export src$u; }
+#S$: src$i is src$i & src$t=3 & imm_mode=0 { export src$i; }
+#S$: src$ts is src$ts & src$t=3 & imm_mode=$ { export src$ts; }
+#S$: src$id is src$id & src$t=3 & imm_mode=3 { export src$id; }
+
 S1: src1r is src1r & src1t=0 { export src1r; }
 S1: src1r^"`" is src1r & src1t=1 { export src1r; }
 S1: src1u is src1u & src1t=2 { export src1u; }
-
 S1: src1i is src1i & src1t=3 & imm_mode=0 { export src1i; }
 S1: src1ts is src1ts & src1t=3 & imm_mode=1 { export src1ts; }
 S1: src1id is src1id & src1t=3 & imm_mode=3 { export src1id; }
+
+S2: src2r is src2r & src2t=0 { export src2r; }
+S2: src2r^"`" is src2r & src2t=1 { export src2r; }
+S2: src2u is src2u & src2t=2 { export src2u; }
+S2: src2i is src2i & src2t=3 & imm_mode=0 { export src2i; }
+S2: src2ts is src2ts & src2t=3 & imm_mode=2 { export src2ts; }
+S2: src2id is src2id & src2t=3 & imm_mode=3 { export src2id; }
+
+#AN$: S$ is S$ & absneg$=0 { export S$; }
+#AN$: S$^".neg" is S$ & absneg$=1 { t:4 = 0:4 f- S$; export t; }
+#AN$: S$^".abs" is S$ & absneg$=2 { t:4 = abs(S$); export t; }
+#AN$: S$^".neg.abs" is S$ & absneg$=3 { t:4 = 0:4 f- abs(S$); export t; }
+
+AN1: S1 is S1 & absneg1=0 { export S1; }
+AN1: S1^".neg" is S1 & absneg1=1 { t:4 = 0:4 f- S1; export t; }
+AN1: S1^".abs" is S1 & absneg1=2 { t:4 = abs(S1); export t; }
+AN1: S1^".neg.abs" is S1 & absneg1=3 { t:4 = 0:4 f- abs(S1); export t; }
+
+AN2: S2 is S2 & absneg2=0 { export S2; }
+AN2: S2^".neg" is S2 & absneg2=1 { t:4 = 0:4 f- S2; export t; }
+AN2: S2^".abs" is S2 & absneg2=2 { t:4 = abs(S2); export t; }
+AN2: S2^".neg.abs" is S2 & absneg2=3 { t:4 = 0:4 f- abs(S2); export t; }
 
 macro Store(reg, mask, val) {
       maskv = (((mask & 1) << 8) - 1) + (((mask & 2) << 15) - 1) + (((mask & 4) << 22) - 1) + (((mask & 8) << 29) - 1);
@@ -119,4 +157,8 @@ macro Store(reg, mask, val) {
 
 :MOV.i32 D1, S1 is op=0x91 & second2=0x0 & D1 & DM & S1 {
          Store(D1, DM, S1);
+}
+
+:FADD.f32 D1, AN1, AN2 is op=0xA4 & D1 & DM & AN1 & AN2 {
+         Store(D1, DM, AN1 f+ AN2);
 }
