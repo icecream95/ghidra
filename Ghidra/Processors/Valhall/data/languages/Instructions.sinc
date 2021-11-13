@@ -46,6 +46,8 @@ define token opword (64)
 
         second2      = (16,19)
 
+        clamp        = (32,33)
+
         ofs          = (8,23) signed
         constant     = (8,39)
         sr_count     = (33,35)
@@ -114,21 +116,21 @@ attach variables [ src1id src2id src3id src4id ] [
 ];
 
 #S$: src$r is src$r & src$t=0 { export src$r; }
-#S$: src$r^"`" is src$r & src$t=1 { export src$r; }
+#S$: "`"^src$r is src$r & src$t=1 { export src$r; }
 #S$: src$u is src$u & src$t=2 { export src$u; }
 #S$: src$i is src$i & src$t=3 & imm_mode=0 { export src$i; }
 #S$: src$ts is src$ts & src$t=3 & imm_mode=$ { export src$ts; }
 #S$: src$id is src$id & src$t=3 & imm_mode=3 { export src$id; }
 
 S1: src1r is src1r & src1t=0 { export src1r; }
-S1: src1r^"`" is src1r & src1t=1 { export src1r; }
+S1: "`"^src1r is src1r & src1t=1 { export src1r; }
 S1: src1u is src1u & src1t=2 { export src1u; }
 S1: src1i is src1i & src1t=3 & imm_mode=0 { export src1i; }
 S1: src1ts is src1ts & src1t=3 & imm_mode=1 { export src1ts; }
 S1: src1id is src1id & src1t=3 & imm_mode=3 { export src1id; }
 
 S2: src2r is src2r & src2t=0 { export src2r; }
-S2: src2r^"`" is src2r & src2t=1 { export src2r; }
+S2: "`"^src2r is src2r & src2t=1 { export src2r; }
 S2: src2u is src2u & src2t=2 { export src2u; }
 S2: src2i is src2i & src2t=3 & imm_mode=0 { export src2i; }
 S2: src2ts is src2ts & src2t=3 & imm_mode=2 { export src2ts; }
@@ -155,10 +157,31 @@ macro Store(reg, mask, val) {
       reg = (val & maskv) | (reg & ~maskv);
 }
 
-:MOV.i32 D1, S1 is op=0x91 & second2=0x0 & D1 & DM & S1 {
-         Store(D1, DM, S1);
+macro StoreClamp(reg, mask, clamp, val) {
+      # if bit 1 is set, clamp to -1
+      clamp_m1 = zext(val f> 0xbf800000:4) * val + zext(val f<= 0xbf800000) * 0xbf800000:4;
+      val = zext(clamp & 1:1 != 0:1) * clamp_m1 + zext(clamp & 1:1 == 0:1) * val;
+
+      # if bit 2 is set, clamp to 0
+      clamp_0 = zext(val f> 0:4) * val + zext(val f<= 0) * 0:4;
+      val = zext(clamp & 2:1 != 0:1) * clamp_0 + zext(clamp & 2:1 == 0:1) * val;
+
+      # if bit 3 is set, clamp to 1
+      clamp_1 = zext(val f> 0x3f800000:4) * 0x3f800000:4 + zext(val f<= 0x3f800000:4) * val;
+      val = zext(clamp & 4:1 != 0:1) * clamp_1 + zext(clamp & 4:1 == 0:1) * val;
+
+      Store(reg, mask, val);
 }
 
-:FADD.f32 D1, AN1, AN2 is op=0xA4 & D1 & DM & AN1 & AN2 {
-         Store(D1, DM, AN1 f+ AN2);
+:MOV.i32 D1, S1 is op=0x91 & second2=0x0 & D1 & DM & S1 {
+        Store(D1, DM, S1);
+}
+
+DC: "" is clamp=0 { export 0:1; }
+DC: "clamp_0_inf" is clamp=1 { export 2:1; }
+DC: "clamp_m1_1" is clamp=2 { export 5:1; }
+DC: "clamp_0_1" is clamp=3 { export 6:1; }
+
+:FADD.f32 D1 DC, AN1, AN2 is op=0xA4 & D1 & DC & DM & AN1 & AN2 {
+        StoreClamp(D1, DM, DC, AN1 f+ AN2);
 }
