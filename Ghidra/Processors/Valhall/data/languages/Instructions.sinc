@@ -4,61 +4,112 @@ define alignment=8;
 
 define space ram type=ram_space size=8 default;
 define space register type=register_space size=4;
-# What should size be, 2 or 4?
 
 define token opword (64)
-       src1         = (0,7)
-       src2         = (8,15)
-       src3         = (16,23)
-       src4         = (24,31)
+        src1         = (0,7)
+        src2         = (8,15)
+        src3         = (16,23)
+        src4         = (24,31)
 
-       src1r        = (0,5)
-       src1t        = (6,7)
-       src2r        = (8,13)
-       src2d        = (14,15)
-       src3r        = (16,21)
-       src3d        = (22,23)
-       src4r        = (24,29)
-       src4d        = (30,31)
+        src1r        = (0,5)
+        src1u        = (0,5)
+        src1i        = (0,4)
+        src1ts       = (0,2)
+        src1id       = (0,4)
+        src1t        = (6,7)
 
-       D1           = (40,45)
-       DM           = (46,47)
+        src2r        = (8,13)
+        src2u        = (8,13)
+        src2i        = (8,12)
+        src2d        = (14,15)
+        src3r        = (16,21)
+        src3u        = (16,21)
+        src3i        = (16,20)
+        src3d        = (22,23)
+        src4r        = (24,29)
+        src4u        = (24,29)
+        src4i        = (24,28)
+        src4d        = (30,31)
 
-       second2      = (16,19)
+        D1           = (40,45)
+        DM           = (46,47)
 
-       ofs          = (8,23) signed
-       constant     = (8,39)
-       sr_count     = (33,35)
-       load_lane    = (36,38)
-       unsigned_skip = (39,39)
-       op           = (48,56)
-       imm_mode     = (57,58)
-       action       = (59,61)
-       do_action    = (62,62)
+        second2      = (16,19)
+
+        ofs          = (8,23) signed
+        constant     = (8,39)
+        sr_count     = (33,35)
+        load_lane    = (36,38)
+        unsigned_skip = (39,39)
+        op           = (48,56)
+        imm_mode     = (57,58)
+        action       = (59,61)
+        do_action    = (62,62)
 ;
 
-# TODO: Also push uniforms?
-
 define register offset=0x00 size=4 [
-       r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12 r13 r14 r15
-       r16 r17 r18 r19 r20 r21 r22 r23 r24 r25 r26 r27 r28 r29 r30 r31
-       r32 r33 r34 r35 r36 r37 r38 r39 r40 r41 r42 r43 r44 r45 r46 r47
-       r48 r49 r50 r51 r52 r53 r54 r55 r56 r57 r58 r59 r60 r61 r62 r63
+        r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12 r13 r14 r15
+        r16 r17 r18 r19 r20 r21 r22 r23 r24 r25 r26 r27 r28 r29 r30 r31
+        r32 r33 r34 r35 r36 r37 r38 r39 r40 r41 r42 r43 r44 r45 r46 r47
+        r48 r49 r50 r51 r52 r53 r54 r55 r56 r57 r58 r59 r60 r61 r62 r63
+];
+
+define register offset=0x100 size=4 [
+        u0 u1 u2 u3 u4 u5 u6 u7 u8 u9 u10 u11 u12 u13 u14 u15
+        u16 u17 u18 u19 u20 u21 u22 u23 u24 u25 u26 u27 u28 u29 u30 u31
+        u32 u33 u34 u35 u36 u37 u38 u39 u40 u41 u42 u43 u44 u45 u46 u47
+        u48 u49 u50 u51 u52 u53 u54 u55 u56 u57 u58 u59 u60 u61 u62 u63
+];
+
+# TODO: Use program_counter
+define register offset=0x200 size=8 [
+        PC
+];
+
+define register offset=0x300 size=4 [
+        tls_ptr tls_ptr_hi wls_ptr wls_ptr_hi
+        lane_id core_id program_counter
 ];
 
 attach variables [ src1r src2r src3r src4r D1 ] [
-       r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12 r13 r14 r15
-       r16 r17 r18 r19 r20 r21 r22 r23 r24 r25 r26 r27 r28 r29 r30 r31
-       r32 r33 r34 r35 r36 r37 r38 r39 r40 r41 r42 r43 r44 r45 r46 r47
-       r48 r49 r50 r51 r52 r53 r54 r55 r56 r57 r58 r59 r60 r61 r62 r63
+        r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12 r13 r14 r15
+        r16 r17 r18 r19 r20 r21 r22 r23 r24 r25 r26 r27 r28 r29 r30 r31
+        r32 r33 r34 r35 r36 r37 r38 r39 r40 r41 r42 r43 r44 r45 r46 r47
+        r48 r49 r50 r51 r52 r53 r54 r55 r56 r57 r58 r59 r60 r61 r62 r63
 ];
 
-# TODO: Different source modes:: how does aarch64 handle XZR?
+attach variables [ src1u src2u src3u src4u ] [
+        u0 u1 u2 u3 u4 u5 u6 u7 u8 u9 u10 u11 u12 u13 u14 u15
+        u16 u17 u18 u19 u20 u21 u22 u23 u24 u25 u26 u27 u28 u29 u30 u31
+        u32 u33 u34 u35 u36 u37 u38 u39 u40 u41 u42 u43 u44 u45 u46 u47
+        u48 u49 u50 u51 u52 u53 u54 u55 u56 u57 u58 u59 u60 u61 u62 u63
+];
 
-S1: src1r is src1t=0 & src1r { export src1r; }
-S1: src1r^"`" is src1t=1 & src1r { export src1r; }
+attach values [ src1i src2i src3i src4i ] [
+        0x0 0xffffffff 0x7fffffff 0xfafcfdfe 0x1000000 0x80002000
+        0x70605030 0xc0b0a090 0x3020100 0x7060504 0xb0a0908 0xf0e0d0c
+        0x13121110 0x17161514 0x1b1a1918 0x1f1e1d1c 0x3f800000
+        0x3dcccccd 0x3ea2f983 0x3f317218 0x40490fdb 0x0 0x477fff00
+        0x5c005bf8 0x2e660000 0x34000000 0x38000000 0x3c000000
+        0x40000000 0x44000000 0x48000000 0x42480000
+];
 
-#    tmp:4 = src1r; src1r = 0xdeadbeef; export tmp;
+attach variables [ src1ts ] [
+        _ _ tls_ptr tls_ptr_hi _ _ wls_ptr wls_ptr_hi
+];
+
+attach variables [ src1id ] [
+        _ _ lane_id _ _ _ core_id _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+        _ _ _ _ _ program_counter _
+];
+
+S1: src1r is src1r & src1t=0 { export src1r; }
+S1: src1r^"`" is src1r & src1t=1 { export src1r; }
+S1: src1u is src1u & src1t=2 { export src1u; }
+
+S1: src1i is src1i & src1t=3 & imm_mode=0 { export src1i; }
+S1: src1ts is src1ts & src1t=3 & imm_mode=1 { export src1ts; }
+S1: src1id is src1id & src1t=3 & imm_mode=3 { export src1id; }
 
 macro Store(reg, mask, val) {
       maskv = (((mask & 1) << 8) - 1) + (((mask & 2) << 15) - 1) + (((mask & 4) << 22) - 1) + (((mask & 8) << 29) - 1);
