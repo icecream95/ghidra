@@ -75,7 +75,7 @@ define register offset=0x100 size=4 [
 
 # TODO: Use program_counter
 define register offset=0x200 size=8 [
-        PC
+        PC SP
 ];
 
 define register offset=0x300 size=4 [
@@ -152,23 +152,22 @@ AN2: S2^".abs" is S2 & absneg2=2 { t:4 = abs(S2); export t; }
 AN2: S2^".neg.abs" is S2 & absneg2=3 { t:4 = 0:4 f- abs(S2); export t; }
 
 macro Store(reg, mask, val) {
-      maskv = (((mask & 1) << 8) - 1) + (((mask & 2) << 15) - 1) + (((mask & 4) << 22) - 1) + (((mask & 8) << 29) - 1);
-
+      maskv = (mask & 1) * 0xffff + (mask & 2) * 0x7fff8000;
       reg = (val & maskv) | (reg & ~maskv);
 }
 
 macro StoreClamp(reg, mask, clamp, val) {
       # if bit 1 is set, clamp to -1
       clamp_m1 = zext(val f> 0xbf800000:4) * val + zext(val f<= 0xbf800000) * 0xbf800000:4;
-      val = zext(clamp & 1:1 != 0:1) * clamp_m1 + zext(clamp & 1:1 == 0:1) * val;
+      val = zext((clamp & 1:1) != 0:1) * clamp_m1 + zext((clamp & 1:1) == 0:1) * val;
 
       # if bit 2 is set, clamp to 0
       clamp_0 = zext(val f> 0:4) * val + zext(val f<= 0) * 0:4;
-      val = zext(clamp & 2:1 != 0:1) * clamp_0 + zext(clamp & 2:1 == 0:1) * val;
+      val = zext((clamp & 2:1) != 0:1) * clamp_0 + zext((clamp & 2:1) == 0:1) * val;
 
       # if bit 3 is set, clamp to 1
       clamp_1 = zext(val f> 0x3f800000:4) * 0x3f800000:4 + zext(val f<= 0x3f800000:4) * val;
-      val = zext(clamp & 4:1 != 0:1) * clamp_1 + zext(clamp & 4:1 == 0:1) * val;
+      val = zext((clamp & 4:1) != 0:1) * clamp_1 + zext((clamp & 4:1) == 0:1) * val;
 
       Store(reg, mask, val);
 }
