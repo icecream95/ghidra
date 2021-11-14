@@ -1,0 +1,91 @@
+define endian=little;
+define alignment=2;
+
+define space ram type=ram_space size=8 default;
+define space register type=register_space size=4;
+
+define token op (16)
+        opc3f        = (0,5)
+        opc7f        = (0,6)
+
+        dest_cache   = (7,7)
+        dest_32      = (8,8)
+        dest_64      = (9,9)
+        dest_r16     = (9,14)
+        dest_r32     = (10,14)
+        dest_r64     = (11,14)
+;
+
+# First sixteen bits come from 'op' table, so offsets are -16
+define token op8 (48)
+        op8src1imm   = (0,5)
+        op8src1_32   = (1,5)
+        op8src1hint  = (6,7)
+        op8src1sz    = (8,9)
+        op8src2imm   = (12,17)
+        op8src2_32   = (13,17)
+        op8src2hint  = (18,19)
+        op8src2sz    = (20,21)
+        op8src3imm   = (24,29)
+        op8src3_32   = (25,29)
+        op8src3hint  = (30,31)
+        op8src3sz    = (32,33)
+        op8src4imm   = (36,41)
+        op8src4_32   = (37,41)
+        op8src4hint  = (42,43)
+        op8src4sz    = (44,45)
+
+        negate       = (11,11)
+
+        shiftl       = (23,23)
+        shifth       = (36,37)
+;
+
+# TODO: Does this need changing?
+define register offset=0x0 size=8 [
+       PC SP
+];
+
+# TODO: Support referencing register numbers
+define register offset=0x100 size=4 [
+        r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12 r13 r14 r15
+        r16 r17 r18 r19 r20 r21 r22 r23 r24 r25 r26 r27 r28 r29 r30 r31
+        r32 r33 r34 r35 r36 r37 r38 r39 r40 r41 r42 r43 r44 r45 r46 r47
+        r48 r49 r50 r51 r52 r53 r54 r55 r56 r57 r58 r59 r60 r61 r62 r63
+];
+
+attach variables [ dest_r32 ] [
+        r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12 r13 r14 r15
+        r16 r17 r18 r19 r20 r21 r22 r23 r24 r25 r26 r27 r28 r29 r30 r31
+];
+
+attach variables [ op8src1_32 op8src2_32 op8src3_32 op8src4_32 ] [
+        r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12 r13 r14 r15
+        r16 r17 r18 r19 r20 r21 r22 r23 r24 r25 r26 r27 r28 r29 r30 r31
+];
+
+Rd: dest_r32 is dest_r32 { export dest_r32; }
+
+Rm8: op8src1_32 is op8src1sz!=1 & op8src1hint!=0 & op8src1_32 { export op8src1_32; }
+Rm8: op8src1_32 is (op8src1sz=1 | op8src1hint=0) & op8src1_32 { export 0:4; }
+Rn8: op8src2_32 is op8src2sz!=2 & op8src2hint!=0 & op8src2_32 { export op8src2_32; }
+Rn8: op8src2_32 is (op8src2sz=2 | op8src2hint=0) & op8src2_32 { export 0:4; }
+
+# TODO: Compiler is wrong here?
+#      raw |= (uint64_t) (I->shift & 1) << 39;
+#      raw |= (uint64_t) (I->shift >> 2) << 52;
+
+RnSHIFT: Rn8, "lsl #"^shiftval is Rn8 & ((shifth=2 & shiftl=0) | (shifth<2)) & shiftl & shifth
+[ shiftval = shiftl | (shifth << 1); ]
+{ local temp = Rn8 << shiftval; export temp; }
+
+RnSHIFT: Rn8 is Rn8 & ((shifth=2 & shiftl=1) | (shifth=3)) { export Rn8; }
+
+# TODO: Check saturate mode
+:IADD Rd, Rm8, RnSHIFT is opc7f=0x0e & Rd; Rm8 & RnSHIFT & negate=0 {
+      Rd = Rm8 + RnSHIFT;
+}
+
+:ISUB Rd, Rm8, RnSHIFT is opc7f=0x0e & Rd; Rm8 & RnSHIFT & negate=1 {
+      Rd = Rm8 - RnSHIFT;
+}

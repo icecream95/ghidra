@@ -1,0 +1,14 @@
+<?xml version="1.1" encoding="UTF-8"?>
+<language_definitions>
+   <language processor="AGX"
+            endian="little"
+            size="64"
+            variant="default"
+            version="1.0"
+            slafile="AGX.sla"
+            processorspec="AGX.pspec"
+            id="AGX:LE:64:default">
+    <description>Instruction set for Apple GPUs</description>
+    <compiler name="default" spec="AGX.cspec" id="default"/>
+  </language>
+</language_definitions>
