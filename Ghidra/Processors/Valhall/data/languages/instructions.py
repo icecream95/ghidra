@@ -34,6 +34,11 @@ define token opword (64)
         widen1_32    = (36,39)
         widen2_32    = (26,29)
 
+        mod_and      = (24,24)
+        mod_seq      = (25,25)
+        mod_restype  = (30,31)
+        mod_cmp      = (32,34)
+
         D1           = (40,45)
         DM           = (46,47)
 
@@ -104,6 +109,10 @@ attach variables [ src1id src2id src3id src4id ] [
         _ _ _ _ _ program_counter _
 ];
 
+DEST: D1^".mask0" is D1 & DM=0 { export D1; }
+DEST: D1^".h0" is D1 & DM=1 { export D1; }
+DEST: D1^".h1" is D1 & DM=2 { export D1; }
+DEST: D1 is D1 & DM=3 { export D1; }
 
 % for s in range(1, 5):
 
@@ -111,7 +120,7 @@ S${s}: src${s}r is src${s}r & src${s}t=0 { export src${s}r; }
 S${s}: "`"^src${s}r is src${s}r & src${s}t=1 { export src${s}r; }
 S${s}: src${s}u is src${s}u & src${s}t=2 { export src${s}u; }
 S${s}: src${s}i is src${s}i & src${s}t=3 & imm_mode=0 { export src${s}i; }
-S${s}: src${s}ts is src${s}ts & src${s}t=3 & imm_mode=${s} { export src${s}ts; }
+S${s}: src${s}ts is src${s}ts & src${s}t=3 & imm_mode=1 { export src${s}ts; }
 S${s}: src${s}id is src${s}id & src${s}t=3 & imm_mode=3 { export src${s}id; }
 
 % if s < 3:
@@ -153,6 +162,22 @@ AN2.h: S2^".neg" is S2 & absneg2=1 { t:4 = 0:4 f- S2; export t; }
 AN2.h: S2^".abs" is S2 & absneg2=2 { t:4 = abs(S2); export t; }
 AN2.h: S2^".neg.abs" is S2 & absneg2=3 { t:4 = 0:4 f- abs(S2); export t; }
 
+# Comparison bits: LT=1 EQ=2 GT=4 NE=8
+CMP: ".eq" is mod_cmp=0 { export 2:1; }
+CMP: ".gt" is mod_cmp=1 { export 4:1; }
+CMP: ".ge" is mod_cmp=2 { export 6:1; }
+CMP: ".ne" is mod_cmp=3 { export 8:1; }
+CMP: ".lt" is mod_cmp=4 { export 1:1; }
+CMP: ".le" is mod_cmp=5 { export 3:1; }
+CMP: ".gtlt" is mod_cmp=6 { export 5:1; }
+# TODO: What does total even do?
+CMP: ".total" is mod_cmp=7 unimpl
+
+RESTYPE: ".i1" is mod_restype=0 { export 1:4; }
+RESTYPE: ".f1" is mod_restype=1 { export 0x3f800000:4; }
+RESTYPE: ".m1" is mod_restype=2 { export 0xffffffff:4; }
+RESTYPE: ".u1" is mod_restype=3 { export 0:4; }
+
 macro Store(reg, mask, val) {
       maskv = (mask & 1) * 0xffff + (mask & 2) * 0x7fff8000;
       reg = (val & maskv) | (reg & ~maskv);
@@ -175,43 +200,46 @@ macro StoreClamp(reg, mask, clamp, val) {
 }
 
 DC: "" is clamp=0 { export 0:1; }
-DC: "clamp_0_inf" is clamp=1 { export 2:1; }
-DC: "clamp_m1_1" is clamp=2 { export 5:1; }
-DC: "clamp_0_1" is clamp=3 { export 6:1; }
+DC: ".clamp_0_inf" is clamp=1 { export 2:1; }
+DC: ".clamp_m1_1" is clamp=2 { export 5:1; }
+DC: ".clamp_0_1" is clamp=3 { export 6:1; }
 
 define pcodeop clz;
 
-:MOV.i32 D1, S1 is op=0x91 & op2=0x0 & D1 & DM & S1 {
-        Store(D1, DM, S1);
+:MOV.i32 DEST, S1 is op=0x91 & op2=0x0 & DEST & DM & S1 {
+        Store(DEST, DM, S1);
 }
-:CLZ.i32 D1, S1 is op=0x91 & op2=0x4 & D1 & DM & S1 {
-        Store(D1, DM, clz(S1));
+:CLZ.i32 DEST, S1 is op=0x91 & op2=0x4 & DEST & DM & S1 {
+        Store(DEST, DM, clz(S1));
 }
-:IABS.s32 D1, S1 is op=0x91 & op2=0x8 & D1 & DM & S1 {
-        Store(D1, DM, zext(S1 s> 0) * S1 + zext(S1 s<= 0) * -S1);
+:IABS.s32 DEST, S1 is op=0x91 & op2=0x8 & DEST & DM & S1 {
+        Store(DEST, DM, zext(S1 s> 0) * S1 + zext(S1 s<= 0) * -S1);
 }
-:NOT.i32 D1, S1 is op=0x91 & op2=0xE & D1 & DM & S1 {
-        Store(D1, DM, ~S1);
+:NOT.i32 DEST, S1 is op=0x91 & op2=0xE & DEST & DM & S1 {
+        Store(DEST, DM, ~S1);
 }
 
 # TODO: Saturate
 % for num, op, code in ((0, "IADD", "local temp = {} + {};"), (1, "ISUB", "local temp = {} - {};")):
-:${op}.u32 D1, SW1_32, SW2_32 is op=0xA0 & op2=${num} & D1 & DM & SW1_32 & SW2_32 {
+:${op}.u32 DEST, SW1_32, SW2_32 is op=0xA0 & op2=${num} & DEST & DM & SW1_32 & SW2_32 {
         ${code.format("SW1_32", "SW2_32")}
-        Store(D1, DM, temp);
+        Store(DEST, DM, temp);
 }
 % endfor
 
-:FADD.f32 D1 DC, AN1, AN2 is op=0xA4 & D1 & DC & DM & AN1 & AN2 {
-        StoreClamp(D1, DM, DC, AN1 f+ AN2);
+:FADD.f32 DEST DC, AN1, AN2 is op=0xA4 & DEST & DC & DM & AN1 & AN2 {
+        StoreClamp(DEST, DM, DC, AN1 f+ AN2);
 }
-:FADD.v2f16 D1 DC, AN1.h, AN2.h is op=0xA5 & D1 & DC & DM & AN1.h & AN2.h {
+:FADD.v2f16 DEST DC, AN1.h, AN2.h is op=0xA5 & DEST & DC & DM & AN1.h & AN2.h {
         res:4 = 0;
         res[0,16] = AN1.h[0,16] f+ AN2.h[0,16];
         res[16,16] = AN1.h[16,16] f+ AN2.h[16,16];
-        StoreClamp(D1, DM, DC, res);
+        StoreClamp(DEST, DM, DC, res);
 }
 
+# TODO and, seq modifiers
+:ICMP.u32^CMP^RESTYPE DEST, SW1_32, SW2_32, S3 is op=0xf0 & CMP & RESTYPE & DEST & SW1_32 & SW2_32 & S3 {
+}
 
 """
 
