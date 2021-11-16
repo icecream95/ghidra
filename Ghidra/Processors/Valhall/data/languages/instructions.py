@@ -10,6 +10,35 @@ src_ranges = (
     ("t", 6, 7),
 )
 
+swizzles = (
+    (32,
+     (None, None),
+     (None,),
+     (".h0", "0,16"),
+     (".h1", "16,16"),
+     (".b0", "0,8"),
+     (".b1", "8,8"),
+     (".b2", "16,8"),
+     (".b3", "24,8"),
+     ),
+    (16,
+     (".h00", "0,16", "0,16"),
+     (".h10", "16,16", "0,16"),
+     (None, "0,16", "16,16"),
+     (".h11", "16,16", "16,16"),
+     (".b00", "0,8", "0,8"),
+     (".b20", "16,8", "0,8"),
+     (".b02", "0,8", "16,8"),
+     (".b22", "16,8", "16,8"),
+     (".b11", "8,8", "8,8"),
+     (".b31", "24,8", "8,8"),
+     (".b13", "8,8", "24,8"),
+     (".b33", "24,8", "24,8"),
+     (".b01", "0,8", "8,8"),
+     (".b23", "16,8", "24,8"),
+     )
+)
+
 template = """
 define endian=little;
 define alignment=8;
@@ -31,11 +60,13 @@ define token opword (64)
         absneg3      = (34,35)
         absneg4      = (32,33)
 
-        widen1_32    = (36,39)
-        widen2_32    = (26,29)
+        widen1       = (36,39)
+        widen2       = (26,29)
 
         mod_and      = (24,24)
         mod_seq      = (25,25)
+        mod_sat      = (30,30)
+        mod_rhadd    = (30,30)
         mod_restype  = (30,31)
         mod_cmp      = (32,34)
 
@@ -125,14 +156,27 @@ S${s}: src${s}id is src${s}id & src${s}t=3 & imm_mode=3 { export src${s}id; }
 
 % if s < 3:
 
-SW${s}_32: S${s} is S${s} & widen${s}_32<2 { export S${s}; }
-SW${s}_32: S${s}^".h0" is S${s} & widen${s}_32=2 { temp:4 = zext(S${s}[0,16]); export temp; }
-SW${s}_32: S${s}^".h1" is S${s} & widen${s}_32=3 { temp:4 = zext(S${s}[16,16]); export temp; }
-SW${s}_32: S${s}^".b0" is S${s} & widen${s}_32=4 { temp:4 = zext(S${s}[0,8]); export temp; }
-SW${s}_32: S${s}^".b1" is S${s} & widen${s}_32=5 { temp:4 = zext(S${s}[8,8]); export temp; }
-SW${s}_32: S${s}^".b2" is S${s} & widen${s}_32=6 { temp:4 = zext(S${s}[16,8]); export temp; }
-SW${s}_32: S${s}^".b3" is S${s} & widen${s}_32=7 { temp:4 = zext(S${s}[24,8]); export temp; }
+# TODO: 64-bit swizzles
+% for bits, *patterns in swizzles:
+% for widen, (name, *ranges) in enumerate(patterns):
+<%
+   if not len(ranges): continue
+   name = f'^"{name}"' if name else ""
+   size = 32 // len(ranges)
+   code = ""
+   for num, r in enumerate(ranges):
+      assign = f"[{num*size},{size}]" if size != 32 else ""
+      if r and int(r.split(",")[1]) == size:
+         val = f"S{s}[{r}]"
+      elif r:
+         val = f"zext(S{s}[{r}])"
+      else:
+         val = f"S{s}"
+      code += f"temp{assign} = {val}; "
+ %>SW${s}_${bits}: S${s}${name} is S${s} & widen${s}=${widen} { local temp:4; ${code}export temp; }
+% endfor
 
+% endfor
 % endif
 % endfor
 
@@ -178,6 +222,12 @@ RESTYPE: ".f1" is mod_restype=1 { export 0x3f800000:4; }
 RESTYPE: ".m1" is mod_restype=2 { export 0xffffffff:4; }
 RESTYPE: ".u1" is mod_restype=3 { export 0:4; }
 
+SAT: "" is mod_sat=0 { export 0:1; }
+SAT: ".saturate" is mod_sat=1 { export 1:1; }
+
+RHADD: "" is mod_rhadd=0 { export 0:1; }
+RHADD: ".rhadd" is mod_rhadd=1 { export 1:1; }
+
 macro Store(reg, mask, val) {
       maskv = (mask & 1) * 0xffff + (mask & 2) * 0x7fff8000;
       reg = (val & maskv) | (reg & ~maskv);
@@ -205,6 +255,7 @@ DC: ".clamp_m1_1" is clamp=2 { export 5:1; }
 DC: ".clamp_0_1" is clamp=3 { export 6:1; }
 
 define pcodeop clz;
+define pcodeop saturate;
 
 :MOV.i32 DEST, S1 is op=0x91 & op2=0x0 & DEST & DM & S1 {
         Store(DEST, DM, S1);
@@ -219,18 +270,54 @@ define pcodeop clz;
         Store(DEST, DM, ~S1);
 }
 
-# TODO: Saturate
-% for num, op, code in ((0, "IADD", "local temp = {} + {};"), (1, "ISUB", "local temp = {} - {};")):
-:${op}.u32 DEST, SW1_32, SW2_32 is op=0xA0 & op2=${num} & DEST & DM & SW1_32 & SW2_32 {
-        ${code.format("SW1_32", "SW2_32")}
+# TODO: Calculate saturation: check if 64-bit computation == 32-bit computation?
+# TODO: CLPER, also shaddx?
+
+% for num, op, code in ((0, "IADD", "a + b"), (1, "ISUB", "a - b"), (0xa, "IMUL", "a * b"), (0xb, "HADD", "zext(RHADD == 0) * ((a & b) + ((a ^ b) >> 1)) + zext(RHADD == 1) * ((a | b) - (a ^ b) >> 1)")):
+% for saturate in (0, 1):
+<%
+   if op == "HADD":
+      mods = "^RHADD"
+      mod_field = "& RHADD"
+      code_s = code.replace(">>", "s>>")
+      if saturate: continue
+   else:
+      mods = '^".saturate"' if saturate else ""
+      mod_field = f"& mod_sat={saturate}"
+      if saturate:
+          code = f"saturate({code})"
+      code_s = code
+ %>
+
+:${op}.u32${mods} DEST, SW1_32, SW2_32 is op=0xA0 & op2=${num} & DEST & DM & SW1_32 & SW2_32 ${mod_field} {
+        local a = SW1_32; local b = SW2_32;
+        Store(DEST, DM, ${code});
+}
+
+:${op}.s32${mods} DEST, SW1_32, SW2_32 is op=0xA8 & op2=${num} & DEST & DM & SW1_32 & SW2_32 ${mod_field} {
+        local a = SW1_32; local b = SW2_32;
+        Store(DEST, DM, ${code_s});
+}
+
+:${op}.s32${mods} DEST, SW1_32, SW2_32 is op=0x1A0 & op2=${num} & DEST & DM & SW1_32 & SW2_32 ${mod_field} {
+        local a = SW1_32; local b = SW2_32;
+        Store(DEST, DM, ${code_s});
+}
+
+:${op}.v2u16${mods} DEST, SW1_16, SW2_16 is op=0xA1 & op2=${num} & DEST & DM & SW1_16 & SW2_16 ${mod_field} {
+        local temp:4; local a; local b;
+        a = SW1_16[0,16]; b = SW2_16[0,16]; temp[0,16] = ${code};
+        a = SW1_16[16,16]; b = SW2_16[16,16]; temp[16,16] = ${code};
         Store(DEST, DM, temp);
 }
+
+% endfor
 % endfor
 
-:FADD.f32 DEST DC, AN1, AN2 is op=0xA4 & DEST & DC & DM & AN1 & AN2 {
+:FADD.f32 DEST^DC, AN1, AN2 is op=0xA4 & DEST & DC & DM & AN1 & AN2 {
         StoreClamp(DEST, DM, DC, AN1 f+ AN2);
 }
-:FADD.v2f16 DEST DC, AN1.h, AN2.h is op=0xA5 & DEST & DC & DM & AN1.h & AN2.h {
+:FADD.v2f16 DEST^DC, AN1.h, AN2.h is op=0xA5 & DEST & DC & DM & AN1.h & AN2.h {
         res:4 = 0;
         res[0,16] = AN1.h[0,16] f+ AN2.h[0,16];
         res[16,16] = AN1.h[16,16] f+ AN2.h[16,16];
@@ -244,6 +331,6 @@ define pcodeop clz;
 """
 
 try:
-    print(Template(template).render(src_ranges=src_ranges))
+    print(Template(template).render(src_ranges=src_ranges, swizzles=swizzles))
 except:
     print(exceptions.text_error_template().render())

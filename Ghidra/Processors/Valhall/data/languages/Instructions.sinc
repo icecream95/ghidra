@@ -44,11 +44,13 @@ define token opword (64)
         absneg3      = (34,35)
         absneg4      = (32,33)
 
-        widen1_32    = (36,39)
-        widen2_32    = (26,29)
+        widen1       = (36,39)
+        widen2       = (26,29)
 
         mod_and      = (24,24)
         mod_seq      = (25,25)
+        mod_sat      = (30,30)
+        mod_rhadd    = (30,30)
         mod_restype  = (30,31)
         mod_cmp      = (32,34)
 
@@ -380,13 +382,29 @@ S1: src1ts is src1ts & src1t=3 & imm_mode=1 { export src1ts; }
 S1: src1id is src1id & src1t=3 & imm_mode=3 { export src1id; }
 
 
-SW1_32: S1 is S1 & widen1_32<2 { export S1; }
-SW1_32: S1^".h0" is S1 & widen1_32=2 { temp:4 = zext(S1[0,16]); export temp; }
-SW1_32: S1^".h1" is S1 & widen1_32=3 { temp:4 = zext(S1[16,16]); export temp; }
-SW1_32: S1^".b0" is S1 & widen1_32=4 { temp:4 = zext(S1[0,8]); export temp; }
-SW1_32: S1^".b1" is S1 & widen1_32=5 { temp:4 = zext(S1[8,8]); export temp; }
-SW1_32: S1^".b2" is S1 & widen1_32=6 { temp:4 = zext(S1[16,8]); export temp; }
-SW1_32: S1^".b3" is S1 & widen1_32=7 { temp:4 = zext(S1[24,8]); export temp; }
+# TODO: 64-bit swizzles
+SW1_32: S1 is S1 & widen1=0 { local temp:4; temp = S1; export temp; }
+SW1_32: S1^".h0" is S1 & widen1=2 { local temp:4; temp = zext(S1[0,16]); export temp; }
+SW1_32: S1^".h1" is S1 & widen1=3 { local temp:4; temp = zext(S1[16,16]); export temp; }
+SW1_32: S1^".b0" is S1 & widen1=4 { local temp:4; temp = zext(S1[0,8]); export temp; }
+SW1_32: S1^".b1" is S1 & widen1=5 { local temp:4; temp = zext(S1[8,8]); export temp; }
+SW1_32: S1^".b2" is S1 & widen1=6 { local temp:4; temp = zext(S1[16,8]); export temp; }
+SW1_32: S1^".b3" is S1 & widen1=7 { local temp:4; temp = zext(S1[24,8]); export temp; }
+
+SW1_16: S1^".h00" is S1 & widen1=0 { local temp:4; temp[0,16] = S1[0,16]; temp[16,16] = S1[0,16]; export temp; }
+SW1_16: S1^".h10" is S1 & widen1=1 { local temp:4; temp[0,16] = S1[16,16]; temp[16,16] = S1[0,16]; export temp; }
+SW1_16: S1 is S1 & widen1=2 { local temp:4; temp[0,16] = S1[0,16]; temp[16,16] = S1[16,16]; export temp; }
+SW1_16: S1^".h11" is S1 & widen1=3 { local temp:4; temp[0,16] = S1[16,16]; temp[16,16] = S1[16,16]; export temp; }
+SW1_16: S1^".b00" is S1 & widen1=4 { local temp:4; temp[0,16] = zext(S1[0,8]); temp[16,16] = zext(S1[0,8]); export temp; }
+SW1_16: S1^".b20" is S1 & widen1=5 { local temp:4; temp[0,16] = zext(S1[16,8]); temp[16,16] = zext(S1[0,8]); export temp; }
+SW1_16: S1^".b02" is S1 & widen1=6 { local temp:4; temp[0,16] = zext(S1[0,8]); temp[16,16] = zext(S1[16,8]); export temp; }
+SW1_16: S1^".b22" is S1 & widen1=7 { local temp:4; temp[0,16] = zext(S1[16,8]); temp[16,16] = zext(S1[16,8]); export temp; }
+SW1_16: S1^".b11" is S1 & widen1=8 { local temp:4; temp[0,16] = zext(S1[8,8]); temp[16,16] = zext(S1[8,8]); export temp; }
+SW1_16: S1^".b31" is S1 & widen1=9 { local temp:4; temp[0,16] = zext(S1[24,8]); temp[16,16] = zext(S1[8,8]); export temp; }
+SW1_16: S1^".b13" is S1 & widen1=10 { local temp:4; temp[0,16] = zext(S1[8,8]); temp[16,16] = zext(S1[24,8]); export temp; }
+SW1_16: S1^".b33" is S1 & widen1=11 { local temp:4; temp[0,16] = zext(S1[24,8]); temp[16,16] = zext(S1[24,8]); export temp; }
+SW1_16: S1^".b01" is S1 & widen1=12 { local temp:4; temp[0,16] = zext(S1[0,8]); temp[16,16] = zext(S1[8,8]); export temp; }
+SW1_16: S1^".b23" is S1 & widen1=13 { local temp:4; temp[0,16] = zext(S1[16,8]); temp[16,16] = zext(S1[24,8]); export temp; }
 
 
 S2: src2r is src2r & src2t=0 { export src2r; }
@@ -397,13 +415,29 @@ S2: src2ts is src2ts & src2t=3 & imm_mode=1 { export src2ts; }
 S2: src2id is src2id & src2t=3 & imm_mode=3 { export src2id; }
 
 
-SW2_32: S2 is S2 & widen2_32<2 { export S2; }
-SW2_32: S2^".h0" is S2 & widen2_32=2 { temp:4 = zext(S2[0,16]); export temp; }
-SW2_32: S2^".h1" is S2 & widen2_32=3 { temp:4 = zext(S2[16,16]); export temp; }
-SW2_32: S2^".b0" is S2 & widen2_32=4 { temp:4 = zext(S2[0,8]); export temp; }
-SW2_32: S2^".b1" is S2 & widen2_32=5 { temp:4 = zext(S2[8,8]); export temp; }
-SW2_32: S2^".b2" is S2 & widen2_32=6 { temp:4 = zext(S2[16,8]); export temp; }
-SW2_32: S2^".b3" is S2 & widen2_32=7 { temp:4 = zext(S2[24,8]); export temp; }
+# TODO: 64-bit swizzles
+SW2_32: S2 is S2 & widen2=0 { local temp:4; temp = S2; export temp; }
+SW2_32: S2^".h0" is S2 & widen2=2 { local temp:4; temp = zext(S2[0,16]); export temp; }
+SW2_32: S2^".h1" is S2 & widen2=3 { local temp:4; temp = zext(S2[16,16]); export temp; }
+SW2_32: S2^".b0" is S2 & widen2=4 { local temp:4; temp = zext(S2[0,8]); export temp; }
+SW2_32: S2^".b1" is S2 & widen2=5 { local temp:4; temp = zext(S2[8,8]); export temp; }
+SW2_32: S2^".b2" is S2 & widen2=6 { local temp:4; temp = zext(S2[16,8]); export temp; }
+SW2_32: S2^".b3" is S2 & widen2=7 { local temp:4; temp = zext(S2[24,8]); export temp; }
+
+SW2_16: S2^".h00" is S2 & widen2=0 { local temp:4; temp[0,16] = S2[0,16]; temp[16,16] = S2[0,16]; export temp; }
+SW2_16: S2^".h10" is S2 & widen2=1 { local temp:4; temp[0,16] = S2[16,16]; temp[16,16] = S2[0,16]; export temp; }
+SW2_16: S2 is S2 & widen2=2 { local temp:4; temp[0,16] = S2[0,16]; temp[16,16] = S2[16,16]; export temp; }
+SW2_16: S2^".h11" is S2 & widen2=3 { local temp:4; temp[0,16] = S2[16,16]; temp[16,16] = S2[16,16]; export temp; }
+SW2_16: S2^".b00" is S2 & widen2=4 { local temp:4; temp[0,16] = zext(S2[0,8]); temp[16,16] = zext(S2[0,8]); export temp; }
+SW2_16: S2^".b20" is S2 & widen2=5 { local temp:4; temp[0,16] = zext(S2[16,8]); temp[16,16] = zext(S2[0,8]); export temp; }
+SW2_16: S2^".b02" is S2 & widen2=6 { local temp:4; temp[0,16] = zext(S2[0,8]); temp[16,16] = zext(S2[16,8]); export temp; }
+SW2_16: S2^".b22" is S2 & widen2=7 { local temp:4; temp[0,16] = zext(S2[16,8]); temp[16,16] = zext(S2[16,8]); export temp; }
+SW2_16: S2^".b11" is S2 & widen2=8 { local temp:4; temp[0,16] = zext(S2[8,8]); temp[16,16] = zext(S2[8,8]); export temp; }
+SW2_16: S2^".b31" is S2 & widen2=9 { local temp:4; temp[0,16] = zext(S2[24,8]); temp[16,16] = zext(S2[8,8]); export temp; }
+SW2_16: S2^".b13" is S2 & widen2=10 { local temp:4; temp[0,16] = zext(S2[8,8]); temp[16,16] = zext(S2[24,8]); export temp; }
+SW2_16: S2^".b33" is S2 & widen2=11 { local temp:4; temp[0,16] = zext(S2[24,8]); temp[16,16] = zext(S2[24,8]); export temp; }
+SW2_16: S2^".b01" is S2 & widen2=12 { local temp:4; temp[0,16] = zext(S2[0,8]); temp[16,16] = zext(S2[8,8]); export temp; }
+SW2_16: S2^".b23" is S2 & widen2=13 { local temp:4; temp[0,16] = zext(S2[16,8]); temp[16,16] = zext(S2[24,8]); export temp; }
 
 
 S3: src3r is src3r & src3t=0 { export src3r; }
@@ -464,6 +498,12 @@ RESTYPE: ".f1" is mod_restype=1 { export 0x3f800000:4; }
 RESTYPE: ".m1" is mod_restype=2 { export 0xffffffff:4; }
 RESTYPE: ".u1" is mod_restype=3 { export 0:4; }
 
+SAT: "" is mod_sat=0 { export 0:1; }
+SAT: ".saturate" is mod_sat=1 { export 1:1; }
+
+RHADD: "" is mod_rhadd=0 { export 0:1; }
+RHADD: ".rhadd" is mod_rhadd=1 { export 1:1; }
+
 macro Store(reg, mask, val) {
       maskv = (mask & 1) * 0xffff + (mask & 2) * 0x7fff8000;
       reg = (val & maskv) | (reg & ~maskv);
@@ -491,6 +531,7 @@ DC: ".clamp_m1_1" is clamp=2 { export 5:1; }
 DC: ".clamp_0_1" is clamp=3 { export 6:1; }
 
 define pcodeop clz;
+define pcodeop saturate;
 
 :MOV.i32 DEST, S1 is op=0x91 & op2=0x0 & DEST & DM & S1 {
         Store(DEST, DM, S1);
@@ -505,20 +546,184 @@ define pcodeop clz;
         Store(DEST, DM, ~S1);
 }
 
-# TODO: Saturate
-:IADD.u32 DEST, SW1_32, SW2_32 is op=0xA0 & op2=0 & DEST & DM & SW1_32 & SW2_32 {
-        local temp = SW1_32 + SW2_32;
-        Store(DEST, DM, temp);
+# TODO: Calculate saturation: check if 64-bit computation == 32-bit computation?
+# TODO:, CLPER (which is different enough that I can't reuse code
+
+# Also shaddx?
+
+
+
+:IADD.u32 DEST, SW1_32, SW2_32 is op=0xA0 & op2=0 & DEST & DM & SW1_32 & SW2_32 & mod_sat=0 {
+        local a = SW1_32; local b = SW2_32;
+        Store(DEST, DM, a + b);
 }
-:ISUB.u32 DEST, SW1_32, SW2_32 is op=0xA0 & op2=1 & DEST & DM & SW1_32 & SW2_32 {
-        local temp = SW1_32 - SW2_32;
+
+:IADD.s32 DEST, SW1_32, SW2_32 is op=0xA8 & op2=0 & DEST & DM & SW1_32 & SW2_32 & mod_sat=0 {
+        local a = SW1_32; local b = SW2_32;
+        Store(DEST, DM, a + b);
+}
+
+:IADD.s32 DEST, SW1_32, SW2_32 is op=0x1A0 & op2=0 & DEST & DM & SW1_32 & SW2_32 & mod_sat=0 {
+        local a = SW1_32; local b = SW2_32;
+        Store(DEST, DM, a + b);
+}
+
+:IADD.v2u16 DEST, SW1_16, SW2_16 is op=0xA1 & op2=0 & DEST & DM & SW1_16 & SW2_16 & mod_sat=0 {
+        local temp:4; local a; local b;
+        a = SW1_16[0,16]; b = SW2_16[0,16]; temp[0,16] = a + b;
+        a = SW1_16[16,16]; b = SW2_16[16,16]; temp[16,16] = a + b;
         Store(DEST, DM, temp);
 }
 
-:FADD.f32 DEST DC, AN1, AN2 is op=0xA4 & DEST & DC & DM & AN1 & AN2 {
+
+
+:IADD.u32^".saturate" DEST, SW1_32, SW2_32 is op=0xA0 & op2=0 & DEST & DM & SW1_32 & SW2_32 & mod_sat=1 {
+        local a = SW1_32; local b = SW2_32;
+        Store(DEST, DM, saturate(a + b));
+}
+
+:IADD.s32^".saturate" DEST, SW1_32, SW2_32 is op=0xA8 & op2=0 & DEST & DM & SW1_32 & SW2_32 & mod_sat=1 {
+        local a = SW1_32; local b = SW2_32;
+        Store(DEST, DM, saturate(a + b));
+}
+
+:IADD.s32^".saturate" DEST, SW1_32, SW2_32 is op=0x1A0 & op2=0 & DEST & DM & SW1_32 & SW2_32 & mod_sat=1 {
+        local a = SW1_32; local b = SW2_32;
+        Store(DEST, DM, saturate(a + b));
+}
+
+:IADD.v2u16^".saturate" DEST, SW1_16, SW2_16 is op=0xA1 & op2=0 & DEST & DM & SW1_16 & SW2_16 & mod_sat=1 {
+        local temp:4; local a; local b;
+        a = SW1_16[0,16]; b = SW2_16[0,16]; temp[0,16] = saturate(a + b);
+        a = SW1_16[16,16]; b = SW2_16[16,16]; temp[16,16] = saturate(a + b);
+        Store(DEST, DM, temp);
+}
+
+
+
+:ISUB.u32 DEST, SW1_32, SW2_32 is op=0xA0 & op2=1 & DEST & DM & SW1_32 & SW2_32 & mod_sat=0 {
+        local a = SW1_32; local b = SW2_32;
+        Store(DEST, DM, a - b);
+}
+
+:ISUB.s32 DEST, SW1_32, SW2_32 is op=0xA8 & op2=1 & DEST & DM & SW1_32 & SW2_32 & mod_sat=0 {
+        local a = SW1_32; local b = SW2_32;
+        Store(DEST, DM, a - b);
+}
+
+:ISUB.s32 DEST, SW1_32, SW2_32 is op=0x1A0 & op2=1 & DEST & DM & SW1_32 & SW2_32 & mod_sat=0 {
+        local a = SW1_32; local b = SW2_32;
+        Store(DEST, DM, a - b);
+}
+
+:ISUB.v2u16 DEST, SW1_16, SW2_16 is op=0xA1 & op2=1 & DEST & DM & SW1_16 & SW2_16 & mod_sat=0 {
+        local temp:4; local a; local b;
+        a = SW1_16[0,16]; b = SW2_16[0,16]; temp[0,16] = a - b;
+        a = SW1_16[16,16]; b = SW2_16[16,16]; temp[16,16] = a - b;
+        Store(DEST, DM, temp);
+}
+
+
+
+:ISUB.u32^".saturate" DEST, SW1_32, SW2_32 is op=0xA0 & op2=1 & DEST & DM & SW1_32 & SW2_32 & mod_sat=1 {
+        local a = SW1_32; local b = SW2_32;
+        Store(DEST, DM, saturate(a - b));
+}
+
+:ISUB.s32^".saturate" DEST, SW1_32, SW2_32 is op=0xA8 & op2=1 & DEST & DM & SW1_32 & SW2_32 & mod_sat=1 {
+        local a = SW1_32; local b = SW2_32;
+        Store(DEST, DM, saturate(a - b));
+}
+
+:ISUB.s32^".saturate" DEST, SW1_32, SW2_32 is op=0x1A0 & op2=1 & DEST & DM & SW1_32 & SW2_32 & mod_sat=1 {
+        local a = SW1_32; local b = SW2_32;
+        Store(DEST, DM, saturate(a - b));
+}
+
+:ISUB.v2u16^".saturate" DEST, SW1_16, SW2_16 is op=0xA1 & op2=1 & DEST & DM & SW1_16 & SW2_16 & mod_sat=1 {
+        local temp:4; local a; local b;
+        a = SW1_16[0,16]; b = SW2_16[0,16]; temp[0,16] = saturate(a - b);
+        a = SW1_16[16,16]; b = SW2_16[16,16]; temp[16,16] = saturate(a - b);
+        Store(DEST, DM, temp);
+}
+
+
+
+:IMUL.u32 DEST, SW1_32, SW2_32 is op=0xA0 & op2=10 & DEST & DM & SW1_32 & SW2_32 & mod_sat=0 {
+        local a = SW1_32; local b = SW2_32;
+        Store(DEST, DM, a * b);
+}
+
+:IMUL.s32 DEST, SW1_32, SW2_32 is op=0xA8 & op2=10 & DEST & DM & SW1_32 & SW2_32 & mod_sat=0 {
+        local a = SW1_32; local b = SW2_32;
+        Store(DEST, DM, a * b);
+}
+
+:IMUL.s32 DEST, SW1_32, SW2_32 is op=0x1A0 & op2=10 & DEST & DM & SW1_32 & SW2_32 & mod_sat=0 {
+        local a = SW1_32; local b = SW2_32;
+        Store(DEST, DM, a * b);
+}
+
+:IMUL.v2u16 DEST, SW1_16, SW2_16 is op=0xA1 & op2=10 & DEST & DM & SW1_16 & SW2_16 & mod_sat=0 {
+        local temp:4; local a; local b;
+        a = SW1_16[0,16]; b = SW2_16[0,16]; temp[0,16] = a * b;
+        a = SW1_16[16,16]; b = SW2_16[16,16]; temp[16,16] = a * b;
+        Store(DEST, DM, temp);
+}
+
+
+
+:IMUL.u32^".saturate" DEST, SW1_32, SW2_32 is op=0xA0 & op2=10 & DEST & DM & SW1_32 & SW2_32 & mod_sat=1 {
+        local a = SW1_32; local b = SW2_32;
+        Store(DEST, DM, saturate(a * b));
+}
+
+:IMUL.s32^".saturate" DEST, SW1_32, SW2_32 is op=0xA8 & op2=10 & DEST & DM & SW1_32 & SW2_32 & mod_sat=1 {
+        local a = SW1_32; local b = SW2_32;
+        Store(DEST, DM, saturate(a * b));
+}
+
+:IMUL.s32^".saturate" DEST, SW1_32, SW2_32 is op=0x1A0 & op2=10 & DEST & DM & SW1_32 & SW2_32 & mod_sat=1 {
+        local a = SW1_32; local b = SW2_32;
+        Store(DEST, DM, saturate(a * b));
+}
+
+:IMUL.v2u16^".saturate" DEST, SW1_16, SW2_16 is op=0xA1 & op2=10 & DEST & DM & SW1_16 & SW2_16 & mod_sat=1 {
+        local temp:4; local a; local b;
+        a = SW1_16[0,16]; b = SW2_16[0,16]; temp[0,16] = saturate(a * b);
+        a = SW1_16[16,16]; b = SW2_16[16,16]; temp[16,16] = saturate(a * b);
+        Store(DEST, DM, temp);
+}
+
+
+
+:HADD.u32^RHADD DEST, SW1_32, SW2_32 is op=0xA0 & op2=11 & DEST & DM & SW1_32 & SW2_32 & RHADD {
+        local a = SW1_32; local b = SW2_32;
+        Store(DEST, DM, zext(RHADD == 0) * ((a & b) + ((a ^ b) >> 1)) + zext(RHADD == 1) * ((a | b) - (a ^ b) >> 1));
+}
+
+:HADD.s32^RHADD DEST, SW1_32, SW2_32 is op=0xA8 & op2=11 & DEST & DM & SW1_32 & SW2_32 & RHADD {
+        local a = SW1_32; local b = SW2_32;
+        Store(DEST, DM, zext(RHADD == 0) * ((a & b) + ((a ^ b) s>> 1)) + zext(RHADD == 1) * ((a | b) - (a ^ b) s>> 1));
+}
+
+:HADD.s32^RHADD DEST, SW1_32, SW2_32 is op=0x1A0 & op2=11 & DEST & DM & SW1_32 & SW2_32 & RHADD {
+        local a = SW1_32; local b = SW2_32;
+        Store(DEST, DM, zext(RHADD == 0) * ((a & b) + ((a ^ b) s>> 1)) + zext(RHADD == 1) * ((a | b) - (a ^ b) s>> 1));
+}
+
+:HADD.v2u16^RHADD DEST, SW1_16, SW2_16 is op=0xA1 & op2=11 & DEST & DM & SW1_16 & SW2_16 & RHADD {
+        local temp:4; local a; local b;
+        a = SW1_16[0,16]; b = SW2_16[0,16]; temp[0,16] = zext(RHADD == 0) * ((a & b) + ((a ^ b) >> 1)) + zext(RHADD == 1) * ((a | b) - (a ^ b) >> 1);
+        a = SW1_16[16,16]; b = SW2_16[16,16]; temp[16,16] = zext(RHADD == 0) * ((a & b) + ((a ^ b) >> 1)) + zext(RHADD == 1) * ((a | b) - (a ^ b) >> 1);
+        Store(DEST, DM, temp);
+}
+
+
+:FADD.f32 DEST^DC, AN1, AN2 is op=0xA4 & DEST & DC & DM & AN1 & AN2 {
         StoreClamp(DEST, DM, DC, AN1 f+ AN2);
 }
-:FADD.v2f16 DEST DC, AN1.h, AN2.h is op=0xA5 & DEST & DC & DM & AN1.h & AN2.h {
+:FADD.v2f16 DEST^DC, AN1.h, AN2.h is op=0xA5 & DEST & DC & DM & AN1.h & AN2.h {
         res:4 = 0;
         res[0,16] = AN1.h[0,16] f+ AN2.h[0,16];
         res[16,16] = AN1.h[16,16] f+ AN2.h[16,16];
