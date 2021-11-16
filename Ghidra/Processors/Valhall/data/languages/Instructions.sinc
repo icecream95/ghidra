@@ -546,10 +546,10 @@ define pcodeop saturate;
         Store(DEST, DM, ~S1);
 }
 
-# TODO: Calculate saturation: check if 64-bit computation == 32-bit computation?
-# TODO:, CLPER (which is different enough that I can't reuse code
+:NOP is op=0x00 { }
 
-# Also shaddx?
+# TODO: Calculate saturation: check if 64-bit computation == 32-bit computation?
+# TODO: CLPER, also shaddx?
 
 
 
