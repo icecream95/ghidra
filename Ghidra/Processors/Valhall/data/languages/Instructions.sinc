@@ -57,7 +57,16 @@ define token opword (64)
         D1           = (40,45)
         DM           = (46,47)
 
-        op2      = (16,19)
+        op2          = (16,19)
+
+        sr1_0        = (40,45)
+        sr1_1        = (40,45)
+        sr1_2        = (40,45)
+        sr1_3        = (40,45)
+        sr2_0        = (16,21)
+        sr2_1        = (16,21)
+        sr2_2        = (16,21)
+        sr2_3        = (16,21)
 
         clamp        = (32,33)
 
@@ -216,7 +225,7 @@ define register offset=0x300 size=4 [
         lane_id core_id program_counter
 ];
 
-attach variables [ src1r src2r src3r src4r D1 ] [
+attach variables [ src1r src2r src3r src4r D1 sr1_0 sr2_0 ] [
         r0
         r1
         r2
@@ -281,6 +290,205 @@ attach variables [ src1r src2r src3r src4r D1 ] [
         r61
         r62
         r63
+];
+
+attach variables [ sr1_1 sr2_1 ] [
+        r1
+        r2
+        r3
+        r4
+        r5
+        r6
+        r7
+        r8
+        r9
+        r10
+        r11
+        r12
+        r13
+        r14
+        r15
+        r16
+        r17
+        r18
+        r19
+        r20
+        r21
+        r22
+        r23
+        r24
+        r25
+        r26
+        r27
+        r28
+        r29
+        r30
+        r31
+        r32
+        r33
+        r34
+        r35
+        r36
+        r37
+        r38
+        r39
+        r40
+        r41
+        r42
+        r43
+        r44
+        r45
+        r46
+        r47
+        r48
+        r49
+        r50
+        r51
+        r52
+        r53
+        r54
+        r55
+        r56
+        r57
+        r58
+        r59
+        r60
+        r61
+        r62
+        r63
+        _
+];
+attach variables [ sr1_2 sr2_2 ] [
+        r2
+        r3
+        r4
+        r5
+        r6
+        r7
+        r8
+        r9
+        r10
+        r11
+        r12
+        r13
+        r14
+        r15
+        r16
+        r17
+        r18
+        r19
+        r20
+        r21
+        r22
+        r23
+        r24
+        r25
+        r26
+        r27
+        r28
+        r29
+        r30
+        r31
+        r32
+        r33
+        r34
+        r35
+        r36
+        r37
+        r38
+        r39
+        r40
+        r41
+        r42
+        r43
+        r44
+        r45
+        r46
+        r47
+        r48
+        r49
+        r50
+        r51
+        r52
+        r53
+        r54
+        r55
+        r56
+        r57
+        r58
+        r59
+        r60
+        r61
+        r62
+        r63
+        _
+        _
+];
+attach variables [ sr1_3 sr2_3 ] [
+        r3
+        r4
+        r5
+        r6
+        r7
+        r8
+        r9
+        r10
+        r11
+        r12
+        r13
+        r14
+        r15
+        r16
+        r17
+        r18
+        r19
+        r20
+        r21
+        r22
+        r23
+        r24
+        r25
+        r26
+        r27
+        r28
+        r29
+        r30
+        r31
+        r32
+        r33
+        r34
+        r35
+        r36
+        r37
+        r38
+        r39
+        r40
+        r41
+        r42
+        r43
+        r44
+        r45
+        r46
+        r47
+        r48
+        r49
+        r50
+        r51
+        r52
+        r53
+        r54
+        r55
+        r56
+        r57
+        r58
+        r59
+        r60
+        r61
+        r62
+        r63
+        _
+        _
+        _
 ];
 
 attach variables [ src1u src2u src3u src4u ] [
@@ -733,5 +941,37 @@ define pcodeop saturate;
 # TODO and, seq modifiers
 :ICMP.u32^CMP^RESTYPE DEST, SW1_32, SW2_32, S3 is op=0xf0 & CMP & RESTYPE & DEST & SW1_32 & SW2_32 & S3 {
 }
+
+
+
+
+SR1_1: @sr1_0 is sr1_0 { export sr1_0; }
+SR2_1: @sr2_0 is sr2_0 { export sr2_0; }
+
+SR1_2: @sr1_0:sr1_1 is sr1_0 & sr1_1 { export sr1_0; }
+SR2_2: @sr2_0:sr2_1 is sr2_0 & sr2_1 { export sr2_0; }
+
+SR1_3: @sr1_0:sr1_1:sr1_2 is sr1_0 & sr1_1 & sr1_2 { export sr1_0; }
+SR2_3: @sr2_0:sr2_1:sr2_2 is sr2_0 & sr2_1 & sr2_2 { export sr2_0; }
+
+SR1_4: @sr1_0:sr1_1:sr1_2:sr1_3 is sr1_0 & sr1_1 & sr1_2 & sr1_3 { export sr1_0; }
+SR2_4: @sr2_0:sr2_1:sr2_2:sr2_3 is sr2_0 & sr2_1 & sr2_2 & sr2_3 { export sr2_0; }
+
+
+:TEX @sr1_0, SR2_4, SW1_32
+is op=0x128 & sr1_0 & SR2_4 & SW1_32 & sr_count=1 unimpl
+
+
+:TEX @sr1_0:sr1_1, SR2_4, SW1_32
+is op=0x128 & sr1_0 & sr1_1 & SR2_4 & SW1_32 & sr_count=2 unimpl
+
+
+:TEX @sr1_0:sr1_1:sr1_2, SR2_4, SW1_32
+is op=0x128 & sr1_0 & sr1_1 & sr1_2 & SR2_4 & SW1_32 & sr_count=3 unimpl
+
+
+:TEX @sr1_0:sr1_1:sr1_2:sr1_3, SR2_4, SW1_32
+is op=0x128 & sr1_0 & sr1_1 & sr1_2 & sr1_3 & SR2_4 & SW1_32 & sr_count=4 unimpl
+
 
 

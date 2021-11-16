@@ -73,7 +73,16 @@ define token opword (64)
         D1           = (40,45)
         DM           = (46,47)
 
-        op2      = (16,19)
+        op2          = (16,19)
+
+        sr1_0        = (40,45)
+        sr1_1        = (40,45)
+        sr1_2        = (40,45)
+        sr1_3        = (40,45)
+        sr2_0        = (16,21)
+        sr2_1        = (16,21)
+        sr2_2        = (16,21)
+        sr2_3        = (16,21)
 
         clamp        = (32,33)
 
@@ -110,11 +119,22 @@ define register offset=0x300 size=4 [
         lane_id core_id program_counter
 ];
 
-attach variables [ src1r src2r src3r src4r D1 ] [
+attach variables [ src1r src2r src3r src4r D1 sr1_0 sr2_0 ] [
 % for reg in range(64):
         r${reg}
 % endfor
 ];
+
+% for sr in range(1, 4):
+attach variables [ sr1_${sr} sr2_${sr} ] [
+% for reg in range(sr, 64):
+        r${reg}
+% endfor
+% for reg in range(sr):
+        _
+% endfor
+];
+% endfor
 
 attach variables [ src1u src2u src3u src4u ] [
 % for reg in range(64):
@@ -329,6 +349,36 @@ define pcodeop saturate;
 # TODO and, seq modifiers
 :ICMP.u32^CMP^RESTYPE DEST, SW1_32, SW2_32, S3 is op=0xf0 & CMP & RESTYPE & DEST & SW1_32 & SW2_32 & S3 {
 }
+
+<%!
+   sr_count = 0
+   def make_sr(sec=False, reg=1, count=None):
+      global sr_count
+      if count == None:
+         count = sr_count
+      l = [f'sr{reg}_{x}' for x in range(count)]
+      if sec:
+         return " & ".join(l)
+      else:
+         return "@" + ":".join(l)
+%>
+
+% for count in range(1, 5):
+<%
+   global sr_count
+   sr_count = count
+ %>
+% for st in range(1, 3):
+SR${st}_${count}: ${make_sr(reg=st)} is ${make_sr(True, reg=st)} { export sr${st}_0; }
+% endfor
+% endfor
+
+% for sr_count in range(1, 5):
+
+:TEX ${make_sr()}, SR2_4, SW1_32
+is op=0x128 & ${make_sr(True)} & SR2_4 & SW1_32 & sr_count=${sr_count} unimpl
+
+% endfor
 
 """
 
