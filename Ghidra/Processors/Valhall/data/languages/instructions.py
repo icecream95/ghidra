@@ -63,16 +63,22 @@ define token opword (64)
         widen1       = (36,39)
         widen2       = (26,29)
 
+        mod_explicit = (11,11)
+        mod_shadow   = (12,12)
+        mod_lod_mode = (13,15)
         mod_and      = (24,24)
         mod_seq      = (25,25)
+        mod_dim      = (28,29)
         mod_sat      = (30,30)
         mod_rhadd    = (30,30)
         mod_restype  = (30,31)
         mod_cmp      = (32,34)
-
+        mod_skip     = (39,39)
+ 
         D1           = (40,45)
         DM           = (46,47)
 
+        op           = (48,56)
         op2          = (16,19)
 
         sr1_0        = (40,45)
@@ -86,12 +92,11 @@ define token opword (64)
 
         clamp        = (32,33)
 
+        # TODO: Some of these can be removed?
         ofs          = (8,23) signed
         constant     = (8,39)
         sr_count     = (33,35)
         load_lane    = (36,38)
-        unsigned_skip = (39,39)
-        op           = (48,56)
         imm_mode     = (57,58)
         action       = (59,61)
         do_action    = (62,62)
@@ -248,6 +253,26 @@ SAT: ".saturate" is mod_sat=1 { export 1:1; }
 RHADD: "" is mod_rhadd=0 { export 0:1; }
 RHADD: ".rhadd" is mod_rhadd=1 { export 1:1; }
 
+LOD_MODE: ".zero" is mod_lod_mode=0 { export 0:1; }
+LOD_MODE: ".computed" is mod_lod_mode=1 { export 1:1; }
+LOD_MODE: ".explicit" is mod_lod_mode=4 { export 4:1; }
+LOD_MODE: ".computed_bias" is mod_lod_mode=5 { export 5:1; }
+LOD_MODE: ".grdesc" is mod_lod_mode=6 { export 6:1; }
+
+DIMENSION: ".1d" is mod_dim=0 { export 0:1; }
+DIMENSION: ".2d" is mod_dim=1 { export 1:1; }
+DIMENSION: ".3d" is mod_dim=2 { export 2:1; }
+DIMENSION: ".cube" is mod_dim=3 { export 3:1; }
+
+SHADOW: "" is mod_shadow=0 { export 0:1; }
+SHADOW: ".shadow" is mod_shadow=1 { export 1:1; }
+
+EXPLICIT: "" is mod_explicit=0 { export 0:1; }
+EXPLICIT: ".explicit_offset" is mod_explicit=1 { export 1:1; }
+
+SKIP: "" is mod_skip=0 { export 0:1; }
+SKIP: ".skip" is mod_skip=1 { export 1:1; }
+
 macro Store(reg, mask, val) {
       maskv = (mask & 1) * 0xffff + (mask & 2) * 0x7fff8000;
       reg = (val & maskv) | (reg & ~maskv);
@@ -375,8 +400,8 @@ SR${st}_${count}: ${make_sr(reg=st)} is ${make_sr(True, reg=st)} { export sr${st
 
 % for sr_count in range(1, 5):
 
-:TEX ${make_sr()}, SR2_4, SW1_32
-is op=0x128 & ${make_sr(True)} & SR2_4 & SW1_32 & sr_count=${sr_count} unimpl
+:TEX^EXPLICIT^SHADOW^LOD_MODE^DIMENSION^SKIP ${make_sr()}, SR2_4, S1
+is op=0x128 & EXPLICIT & SHADOW & LOD_MODE & DIMENSION & SKIP & ${make_sr(True)} & SR2_4 & S1 & sr_count=${sr_count} unimpl
 
 % endfor
 
