@@ -11,7 +11,7 @@ src_ranges = (
 )
 
 swizzles = (
-    (32,
+    ("32", "widen",
      (None, None),
      (None,),
      (".h0", "0,16"),
@@ -21,7 +21,7 @@ swizzles = (
      (".b2", "16,8"),
      (".b3", "24,8"),
      ),
-    (16,
+    ("16", "widen",
      (".h00", "0,16", "0,16"),
      (".h10", "16,16", "0,16"),
      (None, "0,16", "16,16"),
@@ -36,7 +36,12 @@ swizzles = (
      (".b33", "24,8", "24,8"),
      (".b01", "0,8", "8,8"),
      (".b23", "16,8", "24,8"),
-     )
+     ),
+    ("lane32", "lane",
+     (None, None),
+     (".h0", "0,16"),
+     (".h1", "16,16"),
+     ),
 )
 
 template = """
@@ -62,6 +67,7 @@ define token opword (64)
 
         widen1       = (36,39)
         widen2       = (26,29)
+        lane1        = (37,38)
 
         mod_explicit = (11,11)
         mod_shadow   = (12,12)
@@ -73,6 +79,7 @@ define token opword (64)
         mod_rhadd    = (30,30)
         mod_restype  = (30,31)
         mod_cmp      = (32,34)
+        mod_eq       = (36,36)
         mod_skip     = (39,39)
  
         D1           = (40,45)
@@ -92,8 +99,9 @@ define token opword (64)
 
         clamp        = (32,33)
 
+        branchz_ofs  = (8,35) signed
+
         # TODO: Some of these can be removed?
-        ofs          = (8,23) signed
         constant     = (8,39)
         sr_count     = (33,35)
         load_lane    = (36,38)
@@ -182,10 +190,11 @@ S${s}: src${s}id is src${s}id & src${s}t=3 & imm_mode=3 { export src${s}id; }
 % if s < 3:
 
 # TODO: 64-bit swizzles
-% for bits, *patterns in swizzles:
+% for bits, var, *patterns in swizzles:
 % for widen, (name, *ranges) in enumerate(patterns):
 <%
    if not len(ranges): continue
+   if var == "lane" and s != 1: continue
    name = f'^"{name}"' if name else ""
    size = 32 // len(ranges)
    code = ""
@@ -198,7 +207,7 @@ S${s}: src${s}id is src${s}id & src${s}t=3 & imm_mode=3 { export src${s}id; }
       else:
          val = f"S{s}"
       code += f"temp{assign} = {val}; "
- %>SW${s}_${bits}: S${s}${name} is S${s} & widen${s}=${widen} { local temp:4; ${code}export temp; }
+ %>SW${s}_${bits}: S${s}${name} is S${s} & ${var}${s}=${widen} { local temp:4; ${code}export temp; }
 % endfor
 
 % endfor
@@ -272,6 +281,9 @@ EXPLICIT: ".explicit_offset" is mod_explicit=1 { export 1:1; }
 
 SKIP: "" is mod_skip=0 { export 0:1; }
 SKIP: ".skip" is mod_skip=1 { export 1:1; }
+
+EQ: "" is mod_eq=0 { export 0:1; }
+EQ: ".eq" is mod_eq=1 { export 1:1; }
 
 macro Store(reg, mask, val) {
       maskv = (mask & 1) * 0xffff + (mask & 2) * 0x7fff8000;
@@ -400,10 +412,18 @@ SR${st}_${count}: ${make_sr(reg=st)} is ${make_sr(True, reg=st)} { export sr${st
 
 % for sr_count in range(1, 5):
 
+# TODO: Variant for each modifier configuration?
 :TEX^EXPLICIT^SHADOW^LOD_MODE^DIMENSION^SKIP ${make_sr()}, SR2_4, S1
 is op=0x128 & EXPLICIT & SHADOW & LOD_MODE & DIMENSION & SKIP & ${make_sr(True)} & SR2_4 & S1 & sr_count=${sr_count} unimpl
 
 % endfor
+
+RelBranchz: loc is branchz_ofs [ loc = inst_next + branchz_ofs * 8; ] { export *:1 loc; }
+
+:BRANCHZ^EQ SW1_lane32, RelBranchz ("offset:"^branchz_ofs) is op=0x1f & EQ & SW1_lane32 & RelBranchz & branchz_ofs {
+        if ((SW1_lane32 == 0) == EQ)
+                goto RelBranchz;
+}
 
 """
 

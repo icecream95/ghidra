@@ -46,6 +46,7 @@ define token opword (64)
 
         widen1       = (36,39)
         widen2       = (26,29)
+        lane1        = (37,38)
 
         mod_explicit = (11,11)
         mod_shadow   = (12,12)
@@ -57,6 +58,7 @@ define token opword (64)
         mod_rhadd    = (30,30)
         mod_restype  = (30,31)
         mod_cmp      = (32,34)
+        mod_eq       = (36,36)
         mod_skip     = (39,39)
  
         D1           = (40,45)
@@ -76,8 +78,9 @@ define token opword (64)
 
         clamp        = (32,33)
 
+        branchz_ofs  = (8,35) signed
+
         # TODO: Some of these can be removed?
-        ofs          = (8,23) signed
         constant     = (8,39)
         sr_count     = (33,35)
         load_lane    = (36,38)
@@ -619,6 +622,10 @@ SW1_16: S1^".b33" is S1 & widen1=11 { local temp:4; temp[0,16] = zext(S1[24,8]);
 SW1_16: S1^".b01" is S1 & widen1=12 { local temp:4; temp[0,16] = zext(S1[0,8]); temp[16,16] = zext(S1[8,8]); export temp; }
 SW1_16: S1^".b23" is S1 & widen1=13 { local temp:4; temp[0,16] = zext(S1[16,8]); temp[16,16] = zext(S1[24,8]); export temp; }
 
+SW1_lane32: S1 is S1 & lane1=0 { local temp:4; temp = S1; export temp; }
+SW1_lane32: S1^".h0" is S1 & lane1=1 { local temp:4; temp = zext(S1[0,16]); export temp; }
+SW1_lane32: S1^".h1" is S1 & lane1=2 { local temp:4; temp = zext(S1[16,16]); export temp; }
+
 
 S2: src2r is src2r & src2t=0 { export src2r; }
 S2: "`"^src2r is src2r & src2t=1 { export src2r; }
@@ -651,6 +658,7 @@ SW2_16: S2^".b13" is S2 & widen2=10 { local temp:4; temp[0,16] = zext(S2[8,8]); 
 SW2_16: S2^".b33" is S2 & widen2=11 { local temp:4; temp[0,16] = zext(S2[24,8]); temp[16,16] = zext(S2[24,8]); export temp; }
 SW2_16: S2^".b01" is S2 & widen2=12 { local temp:4; temp[0,16] = zext(S2[0,8]); temp[16,16] = zext(S2[8,8]); export temp; }
 SW2_16: S2^".b23" is S2 & widen2=13 { local temp:4; temp[0,16] = zext(S2[16,8]); temp[16,16] = zext(S2[24,8]); export temp; }
+
 
 
 S3: src3r is src3r & src3t=0 { export src3r; }
@@ -736,6 +744,9 @@ EXPLICIT: ".explicit_offset" is mod_explicit=1 { export 1:1; }
 
 SKIP: "" is mod_skip=0 { export 0:1; }
 SKIP: ".skip" is mod_skip=1 { export 1:1; }
+
+EQ: "" is mod_eq=0 { export 0:1; }
+EQ: ".eq" is mod_eq=1 { export 1:1; }
 
 macro Store(reg, mask, val) {
       maskv = (mask & 1) * 0xffff + (mask & 2) * 0x7fff8000;
@@ -983,20 +994,31 @@ SR1_4: @sr1_0:sr1_1:sr1_2:sr1_3 is sr1_0 & sr1_1 & sr1_2 & sr1_3 { export sr1_0;
 SR2_4: @sr2_0:sr2_1:sr2_2:sr2_3 is sr2_0 & sr2_1 & sr2_2 & sr2_3 { export sr2_0; }
 
 
+# TODO: Variant for each modifier configuration?
 :TEX^EXPLICIT^SHADOW^LOD_MODE^DIMENSION^SKIP @sr1_0, SR2_4, S1
 is op=0x128 & EXPLICIT & SHADOW & LOD_MODE & DIMENSION & SKIP & sr1_0 & SR2_4 & S1 & sr_count=1 unimpl
 
 
+# TODO: Variant for each modifier configuration?
 :TEX^EXPLICIT^SHADOW^LOD_MODE^DIMENSION^SKIP @sr1_0:sr1_1, SR2_4, S1
 is op=0x128 & EXPLICIT & SHADOW & LOD_MODE & DIMENSION & SKIP & sr1_0 & sr1_1 & SR2_4 & S1 & sr_count=2 unimpl
 
 
+# TODO: Variant for each modifier configuration?
 :TEX^EXPLICIT^SHADOW^LOD_MODE^DIMENSION^SKIP @sr1_0:sr1_1:sr1_2, SR2_4, S1
 is op=0x128 & EXPLICIT & SHADOW & LOD_MODE & DIMENSION & SKIP & sr1_0 & sr1_1 & sr1_2 & SR2_4 & S1 & sr_count=3 unimpl
 
 
+# TODO: Variant for each modifier configuration?
 :TEX^EXPLICIT^SHADOW^LOD_MODE^DIMENSION^SKIP @sr1_0:sr1_1:sr1_2:sr1_3, SR2_4, S1
 is op=0x128 & EXPLICIT & SHADOW & LOD_MODE & DIMENSION & SKIP & sr1_0 & sr1_1 & sr1_2 & sr1_3 & SR2_4 & S1 & sr_count=4 unimpl
 
+
+RelBranchz: loc is branchz_ofs [ loc = inst_next + branchz_ofs * 8; ] { export *:1 loc; }
+
+:BRANCHZ^EQ SW1_lane32, RelBranchz ("offset:"^branchz_ofs) is op=0x1f & EQ & SW1_lane32 & RelBranchz & branchz_ofs {
+        if ((SW1_lane32 == 0) == EQ)
+                goto RelBranchz;
+}
 
 
